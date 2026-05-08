@@ -17,13 +17,38 @@ function AddApplicationModal({ onClose }) {
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!formData.company || !formData.role || !formData.date) {
             alert("Please fill in all fields.");
             return;
         }
-        console.log("Submitting:", formData);
-        onClose();
+
+        try {
+            const response = await fetch('http://localhost:8000/applications', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    company: formData.company,
+                    role: formData.role,
+                    date_applied: formData.date,
+                    cv_url: null,
+                    status: 'applied',
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`Application for ${data.company} added!`);
+                onClose();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (err) {
+            alert('Could not connect to server.');
+        }
     };
 
     return (
