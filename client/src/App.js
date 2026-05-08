@@ -65,6 +65,21 @@ function App() {
 
   const [showHero, setShowHero] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [applications, setApplications] = useState([]);
+
+  const fetchApplications = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/applications');
+      const data = await response.json();
+      setApplications(data);
+    } catch (err) {
+      console.error('Could not fetch applications');
+    }
+  };
+
+  useEffect(() => {
+    fetchApplications();
+  }, []);
 
   useEffect(() => {
     if (sublineDone) {
@@ -172,7 +187,7 @@ function App() {
         </button>
       </nav>
 
-      {/* Hero — fades out after typewriter finishes */}
+      {/* Hero */}
       <div
         className="relative z-10 px-10 py-16 text-center"
         style={{
@@ -197,7 +212,7 @@ function App() {
         </p>
       </div>
 
-      {/* Stats — fades in after hero fades out */}
+      {/* Stats */}
       <div
         className="relative z-10 flex flex-col items-center justify-center px-10"
         style={{
@@ -207,19 +222,18 @@ function App() {
           marginTop: showHero ? "0" : "80px",
         }}
       >
-        {/* Current Status Label */}
         <p className="text-gray-400 font-semibold text-sm tracking-widest uppercase mb-4">
           Current Status
         </p>
 
-        {/* Stat Cards */}
         <div className="flex justify-center gap-4">
-
           <div
             className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-5 w-40 text-center shadow-sm hover:shadow-xl hover:scale-105 hover:border-emerald-500 transition-all duration-200 cursor-pointer"
             style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
           >
-            <p className="text-3xl font-black text-emerald-400">0</p>
+            <p className="text-3xl font-black text-emerald-400">
+              {applications.filter(a => a.status === 'applied').length}
+            </p>
             <p className="text-gray-400 font-semibold mt-1 text-sm">Applied</p>
           </div>
 
@@ -227,7 +241,9 @@ function App() {
             className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-5 w-40 text-center shadow-sm hover:shadow-xl hover:scale-105 hover:border-blue-500 transition-all duration-200 cursor-pointer"
             style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
           >
-            <p className="text-3xl font-black text-blue-400">0</p>
+            <p className="text-3xl font-black text-blue-400">
+              {applications.filter(a => a.status === 'interview').length}
+            </p>
             <p className="text-gray-400 font-semibold mt-1 text-sm">Interview</p>
           </div>
 
@@ -235,13 +251,63 @@ function App() {
             className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-5 w-40 text-center shadow-sm hover:shadow-xl hover:scale-105 hover:border-red-500 transition-all duration-200 cursor-pointer"
             style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
           >
-            <p className="text-3xl font-black text-red-400">0</p>
+            <p className="text-3xl font-black text-red-400">
+              {applications.filter(a => a.status === 'rejected').length}
+            </p>
             <p className="text-gray-400 font-semibold mt-1 text-sm">Rejected</p>
           </div>
-
         </div>
       </div>
-      {showModal && <AddApplicationModal onClose={() => setShowModal(false)} />}
+
+      {/* Applications List */}
+      <div
+        className="relative z-10 px-10 pb-16"
+        style={{
+          opacity: showHero ? 0 : 1,
+          transition: "opacity 1s ease",
+          marginTop: "40px",
+        }}
+      >
+        {applications.length === 0 ? (
+          <p className="text-center text-gray-600 text-sm mt-4">No applications yet. Start applying! 🔥</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto">
+            {applications.map((app) => (
+              <div
+                key={app.id}
+                className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-6 flex items-center justify-between hover:scale-105 hover:border-emerald-500 transition-all duration-200 cursor-pointer"
+                style={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+              >
+                <div className="flex items-center gap-4">
+                  <img
+                    src={`https://www.google.com/s2/favicons?domain=${app.company.toLowerCase()}.com&sz=32`}
+                    alt={app.company}
+                    className="rounded-md"
+                    style={{ width: "32px", height: "32px" }}
+                  />
+                  <div>
+                    <p className="text-white font-bold text-lg">{app.company}</p>
+                    <p className="text-gray-400 text-sm">{app.role}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-gray-500 text-xs mb-1">{app.date_applied}</p>
+                  <span
+                    className={`text-xs font-bold px-3 py-1 rounded-full ${app.status === 'applied' ? 'bg-blue-500 bg-opacity-20 text-blue-400' :
+                        app.status === 'interview' ? 'bg-emerald-500 bg-opacity-20 text-emerald-400' :
+                          'bg-red-500 bg-opacity-20 text-red-400'
+                      }`}
+                  >
+                    {app.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showModal && <AddApplicationModal onClose={() => { setShowModal(false); fetchApplications(); }} />}
     </div>
   );
 }
