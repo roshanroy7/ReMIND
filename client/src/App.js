@@ -1,3 +1,4 @@
+import AddApplicationModal from "./AddApplicationModal";
 import { useState, useEffect, useRef } from "react";
 
 const useTypewriter = (text, speed = 50, delay = 0) => {
@@ -63,6 +64,7 @@ function App() {
   );
 
   const [showHero, setShowHero] = useState(true);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     if (sublineDone) {
@@ -165,7 +167,7 @@ function App() {
         <h1 className="text-2xl font-black text-emerald-400 cursor-pointer hover:scale-105 transition-transform duration-200">
           ReMind
         </h1>
-        <button className="bg-emerald-500 hover:bg-emerald-400 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/30 text-white font-semibold px-5 py-2 rounded-lg transition-all duration-200">
+        <button onClick={() => setShowModal(true)} className="bg-emerald-500 hover:bg-emerald-400 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/30 text-white font-semibold px-5 py-2 rounded-lg transition-all duration-200">
           + Add Application
         </button>
       </nav>
@@ -239,7 +241,7 @@ function App() {
 
         </div>
       </div>
-
+      {showModal && <AddApplicationModal onClose={() => setShowModal(false)} />}
     </div>
   );
 }
