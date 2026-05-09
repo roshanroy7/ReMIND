@@ -89,6 +89,17 @@ function App() {
     }
   };
 
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await fetch("http://localhost:8000/applications/" + id, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus })
+      });
+      fetchApplications();
+    } catch (err) {}
+  };
+
   useEffect(() => {
     fetchApplications();
     checkUser();
@@ -120,10 +131,10 @@ function App() {
     return () => cancelAnimationFrame(animRef.current);
   }, []);
 
-  const filtered = applications.filter(app =>
-    app.company.toLowerCase().includes(search.toLowerCase()) ||
-    app.role.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = applications.filter(function(app) {
+    return app.company.toLowerCase().includes(search.toLowerCase()) ||
+      app.role.toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(160deg, #020617 0%, #0a0f1e 50%, #020617 100%)" }}>
@@ -199,23 +210,30 @@ function App() {
           <p className="text-center text-gray-600 text-sm mt-4">No applications found.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto">
-            {filtered.map((app) => (
-              <div key={app.id} className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-6 flex items-center justify-between hover:scale-105 hover:border-emerald-500 transition-all duration-200 cursor-pointer" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
-                <div className="flex items-center gap-4">
-                  <img src={"https://www.google.com/s2/favicons?domain=" + app.company.toLowerCase() + ".com&sz=32"} alt={app.company} className="rounded-md" style={{ width: "32px", height: "32px" }} />
-                  <div>
-                    <p className="text-white font-bold text-lg">{app.company}</p>
-                    <p className="text-gray-400 text-sm">{app.role}</p>
+            {filtered.map(function(app) {
+              return (
+                <div key={app.id} className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-6 flex items-center justify-between hover:border-emerald-500 transition-all duration-200" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+                  <div className="flex items-center gap-4">
+                    <img src={"https://www.google.com/s2/favicons?domain=" + app.company.toLowerCase() + ".com&sz=32"} alt={app.company} className="rounded-md" style={{ width: "32px", height: "32px" }} />
+                    <div>
+                      <p className="text-white font-bold text-lg">{app.company}</p>
+                      <p className="text-gray-400 text-sm">{app.role}</p>
+                      <p className="text-gray-500 text-xs mt-1">{app.date_applied}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={"text-xs font-bold px-3 py-1 rounded-full " + (app.status === "applied" ? "bg-blue-500 bg-opacity-20 text-blue-400" : app.status === "interview" ? "bg-emerald-500 bg-opacity-20 text-emerald-400" : "bg-red-500 bg-opacity-20 text-red-400")}>
+                      {app.status}
+                    </span>
+                    <div className="flex gap-1">
+                      <button onClick={function(){handleStatusChange(app.id,"applied");}} className={"text-xs px-2 py-1 rounded transition " + (app.status==="applied" ? "bg-blue-500 text-white" : "text-gray-500 hover:text-blue-400")}>Applied</button>
+                      <button onClick={function(){handleStatusChange(app.id,"interview");}} className={"text-xs px-2 py-1 rounded transition " + (app.status==="interview" ? "bg-emerald-500 text-white" : "text-gray-500 hover:text-emerald-400")}>Interview</button>
+                      <button onClick={function(){handleStatusChange(app.id,"rejected");}} className={"text-xs px-2 py-1 rounded transition " + (app.status==="rejected" ? "bg-red-500 text-white" : "text-gray-500 hover:text-red-400")}>Rejected</button>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-gray-500 text-xs mb-1">{app.date_applied}</p>
-                  <span className={"text-xs font-bold px-3 py-1 rounded-full " + (app.status === "applied" ? "bg-blue-500 bg-opacity-20 text-blue-400" : app.status === "interview" ? "bg-emerald-500 bg-opacity-20 text-emerald-400" : "bg-red-500 bg-opacity-20 text-red-400")}>
-                    {app.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

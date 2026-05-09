@@ -145,6 +145,17 @@ app.get('/applications', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8000;
+app.patch('/applications/:id', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    const { data, error } = await supabase
+        .from('applications')
+        .update({ status })
+        .eq('id', id)
+        .select();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data[0]);
+});
 app.listen(PORT, () => {
     console.log('Server running on port ' + PORT);
 });
