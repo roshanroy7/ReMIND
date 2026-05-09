@@ -43,7 +43,7 @@ const generateLogo = (id) => ({
   x: Math.random() * 95,
   y: -10,
   size: Math.random() * 20 + 28,
-  speed: Math.random() * 0.08 + 0.06,
+  speed: Math.random() * 0.03 + 0.02,
   opacity: Math.random() * 0.35 + 0.25,
   blinking: false,
 });
@@ -55,6 +55,7 @@ function App() {
   const [showModal, setShowModal] = useState(false);
   const [applications, setApplications] = useState([]);
   const [user, setUser] = useState(null);
+  const [search, setSearch] = useState("");
 
   const fetchApplications = async () => {
     try {
@@ -119,6 +120,11 @@ function App() {
     return () => cancelAnimationFrame(animRef.current);
   }, []);
 
+  const filtered = applications.filter(app =>
+    app.company.toLowerCase().includes(search.toLowerCase()) ||
+    app.role.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(160deg, #020617 0%, #0a0f1e 50%, #020617 100%)" }}>
       <div className="absolute pointer-events-none" style={{ width: "700px", height: "700px", borderRadius: "50%", background: "radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)", top: "-200px", left: "50%", transform: "translateX(-50%)" }} />
@@ -180,11 +186,20 @@ function App() {
       </div>
 
       <div className="relative z-10 px-10 pb-16" style={{ opacity: showHero ? 0 : 1, transition: "opacity 1s ease", marginTop: "40px" }}>
-        {applications.length === 0 ? (
-          <p className="text-center text-gray-600 text-sm mt-4">No applications yet. Start applying!</p>
+        <div className="max-w-3xl mx-auto mb-6">
+          <input
+            type="text"
+            placeholder="Search by company or role..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-white bg-opacity-5 border border-white border-opacity-10 rounded-xl px-5 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition"
+          />
+        </div>
+        {filtered.length === 0 ? (
+          <p className="text-center text-gray-600 text-sm mt-4">No applications found.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto">
-            {applications.map((app) => (
+            {filtered.map((app) => (
               <div key={app.id} className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-6 flex items-center justify-between hover:scale-105 hover:border-emerald-500 transition-all duration-200 cursor-pointer" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
                 <div className="flex items-center gap-4">
                   <img src={"https://www.google.com/s2/favicons?domain=" + app.company.toLowerCase() + ".com&sz=32"} alt={app.company} className="rounded-md" style={{ width: "32px", height: "32px" }} />

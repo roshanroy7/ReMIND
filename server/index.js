@@ -97,9 +97,19 @@ app.get('/gmail/sync', async (req, res) => {
                         dateApplied = parsed.toISOString().split('T')[0];
                     }
                 }
-                const { error } = await supabase
+                const { data: existing } = await supabase
                     .from('applications')
-                    .insert([{ company, role, date_applied: dateApplied, status: 'applied', cv_url: null }]);
+                    .select('id')
+                    .eq('company', company)
+                    .eq('role', role)
+                    .limit(1);
+
+                if (!existing || existing.length === 0) {
+                    const { error } = await supabase
+                        .from('applications')
+                        .insert([{ company, role, date_applied: dateApplied, status: 'applied', cv_url: null }]);
+                    if (!error) synced++;
+                }
                 if (!error) synced++;
             } catch (msgErr) {
                 continue;
