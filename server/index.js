@@ -22,7 +22,12 @@ app.use(express.json());
 app.use(session({
     secret: 'remind_secret',
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false
+    }
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -46,13 +51,17 @@ app.get('/auth/google', passport.authenticate('google', {
 app.get('/auth/google/callback',
     passport.authenticate('google', { failureRedirect: 'http://localhost:3000' }),
     (req, res) => {
-        res.redirect('http://localhost:3000');
+        const token = req.user ? req.user.accessToken : null;
+        res.redirect('http://localhost:3000?token=' + token);
     }
 );
 
 app.get('/auth/user', (req, res) => {
+    const token = req.query.token;
     if (req.user) {
         res.json({ user: req.user.profile, accessToken: req.user.accessToken });
+    } else if (token) {
+        res.json({ user: { displayName: 'Roshan' }, accessToken: token });
     } else {
         res.json({ user: null });
     }
@@ -65,31 +74,39 @@ app.get('/auth/logout', (req, res) => {
 });
 
 app.get('/gmail/sync', async (req, res) => {
-    if (!req.user) return res.status(401).json({ error: 'Not logged in' });
-    const accessToken = req.user.accessToken;
+    const accessToken = req.query.token;
+    if (!accessToken) return res.status(401).json({ error: 'Not logged in' });
+
+    let synced = 0;
+    let rejected = 0;
+    let interviews = 0;
+
     try {
         const gmailRes = await fetch(
-            'https://gmail.googleapis.com/gmail/v1/users/me/messages?q=subject:application+OR+subject:applying&maxResults=70',
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages?q=subject:application+OR+subject:applying+OR+subject:unfortunately+OR+subject:regret+OR+subject:screening+OR+subject:interview&maxResults=100',
             { headers: { Authorization: 'Bearer ' + accessToken } }
         );
         const gmailData = await gmailRes.json();
-        if (!gmailData.messages) return res.json({ synced: 0 });
-        let synced = 0;
+        if (!gmailData.messages) return res.json({ synced, rejected, interviews });
+
         for (const msg of gmailData.messages) {
             try {
                 const msgRes = await fetch(
-                    'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msg.id + '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date',
+                    'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + msg.id + '?format=full',
                     { headers: { Authorization: 'Bearer ' + accessToken } }
                 );
                 const msgData = await msgRes.json();
                 if (!msgData.payload || !msgData.payload.headers) continue;
+
                 const headers = msgData.payload.headers;
                 const subject = (headers.find(h => h.name === 'Subject') || {}).value || 'Unknown Role';
                 const from = (headers.find(h => h.name === 'From') || {}).value || 'Unknown Company';
                 const date = (headers.find(h => h.name === 'Date') || {}).value || '';
+
                 const companyMatch = from.match(/^([^<@\n]+)/);
                 const company = companyMatch ? companyMatch[1].trim().replace(/"/g, '') : 'Unknown';
                 const role = subject.slice(0, 100);
+
                 let dateApplied = new Date().toISOString().split('T')[0];
                 if (date) {
                     const parsed = new Date(date);
@@ -97,6 +114,37 @@ app.get('/gmail/sync', async (req, res) => {
                         dateApplied = parsed.toISOString().split('T')[0];
                     }
                 }
+
+                const subjectLower = subject.toLowerCase();
+                const bodySnippet = (msgData.snippet || '').toLowerCase();
+                const combined = subjectLower + ' ' + bodySnippet;
+
+                console.log('SUBJECT:', subject.slice(0, 80));
+                console.log('SNIPPET:', bodySnippet.slice(0, 100));
+
+                let status = 'applied';
+                if (
+                    combined.includes('unfortunately') ||
+                    combined.includes('regret to inform') ||
+                    combined.includes('not moving forward') ||
+                    combined.includes('we will not') ||
+                    combined.includes('other candidates') ||
+                    combined.includes('we have decided') ||
+                    combined.includes('not selected') ||
+                    combined.includes('not be moving')
+                ) {
+                    status = 'rejected';
+                } else if (
+                    combined.includes('screening') ||
+                    combined.includes('interview') ||
+                    combined.includes('speak with you') ||
+                    combined.includes('schedule a call') ||
+                    combined.includes('next steps') ||
+                    combined.includes('pleased to invite')
+                ) {
+                    status = 'interview';
+                }
+
                 const { data: existing } = await supabase
                     .from('applications')
                     .select('id')
@@ -107,15 +155,29 @@ app.get('/gmail/sync', async (req, res) => {
                 if (!existing || existing.length === 0) {
                     const { error } = await supabase
                         .from('applications')
-                        .insert([{ company, role, date_applied: dateApplied, status: 'applied', cv_url: null }]);
-                    if (!error) synced++;
+                        .insert([{ company, role, date_applied: dateApplied, status, cv_url: null }]);
+                    if (!error) {
+                        synced++;
+                        if (status === 'rejected') rejected++;
+                        if (status === 'interview') interviews++;
+                    }
+                } else {
+                    if (status === 'rejected' || status === 'interview') {
+                        await supabase
+                            .from('applications')
+                            .update({ status })
+                            .eq('company', company)
+                            .eq('role', role);
+                        if (status === 'rejected') rejected++;
+                        if (status === 'interview') interviews++;
+                    }
                 }
-                if (!error) synced++;
             } catch (msgErr) {
                 continue;
             }
         }
-        res.json({ synced });
+
+        res.json({ synced, rejected, interviews });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -123,6 +185,15 @@ app.get('/gmail/sync', async (req, res) => {
 
 app.get('/', (req, res) => {
     res.send('ReMind API is running!');
+});
+
+app.get('/applications', async (req, res) => {
+    const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
 app.post('/applications', async (req, res) => {
@@ -135,16 +206,17 @@ app.post('/applications', async (req, res) => {
     res.status(201).json(data[0]);
 });
 
-app.get('/applications', async (req, res) => {
+app.patch('/applications/:id/cv', async (req, res) => {
+    const { id } = req.params;
+    const { cv_url } = req.body;
     const { data, error } = await supabase
         .from('applications')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .update({ cv_url })
+        .eq('id', id)
+        .select();
     if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
+    res.json(data[0]);
 });
-
-const PORT = process.env.PORT || 8000;
 app.patch('/applications/:id', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -156,6 +228,8 @@ app.patch('/applications/:id', async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
+
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log('Server running on port ' + PORT);
 });

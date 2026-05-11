@@ -1,103 +1,175 @@
+import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import AddApplicationModal from "./AddApplicationModal";
-import { useState, useEffect, useRef } from "react";
+import Dashboard from "./pages/Dashboard";
+import Applications from "./pages/Applications";
+import Interviews from "./pages/Interviews";
+import Rejected from "./pages/Rejected";
 
-const useTypewriter = (text, speed = 50, delay = 0) => {
-  const [displayed, setDisplayed] = useState("");
-  const [done, setDone] = useState(false);
-  const [started, setStarted] = useState(false);
-  useEffect(() => {
-    const delayTimer = setTimeout(() => setStarted(true), delay);
-    return () => clearTimeout(delayTimer);
-  }, [delay]);
-  useEffect(() => {
-    if (!started) return;
-    if (displayed.length === text.length) { setDone(true); return; }
-    const timer = setTimeout(() => {
-      setDisplayed(text.slice(0, displayed.length + 1));
-    }, speed);
-    return () => clearTimeout(timer);
-  }, [displayed, started, text, speed]);
-  return { displayed, done };
-};
+const API = "http://localhost:8000";
 
-const companies = [
-  "google.com","meta.com","apple.com","microsoft.com","amazon.com",
-  "netflix.com","spotify.com","adobe.com","salesforce.com","oracle.com",
-  "linkedin.com","uber.com","airbnb.com","dropbox.com","slack.com",
-  "stripe.com","intercom.com","hubspot.com","indeed.com","workday.com",
-  "accenture.com","deloitte.com","pwc.com","kpmg.com","revolut.com",
-  "wise.com","monzo.com","deliveroo.com","figma.com","notion.so",
-  "vercel.com","supabase.io","linear.app","airtable.com","webflow.com",
-  "framer.com","nvidia.com","tesla.com","deepmind.com","klarna.com",
-  "bolt.eu","n26.com","checkout.com","arm.com","ibm.com",
-  "intel.com","siemens.com","sap.com","zoom.us","twilio.com",
-  "shopify.com","atlassian.com","github.com","gitlab.com","cloudflare.com",
-  "datadog.com","mongodb.com","snowflake.com","databricks.com","elastic.co",
-];
+function Sidebar({ user, onLogout, onSync, onAddModal, syncing }) {
+  const nav = [
+    { to: "/", label: "dashboard" },
+    { to: "/applications", label: "applied" },
+    { to: "/interviews", label: "interviews" },
+    { to: "/rejected", label: "rejected" },
+  ];
 
-const getFavicon = (domain) => "https://www.google.com/s2/favicons?domain=" + domain + "&sz=64";
+  return (
+    <aside style={{
+      width: "220px", minHeight: "100vh",
+      background: "#111111",
+      backgroundImage: "radial-gradient(circle, #1a1a1a 1px, transparent 1px)",
+      backgroundSize: "24px 24px",
+      borderRight: "1px solid #1a1a1a",
+      display: "flex", flexDirection: "column",
+      position: "fixed", left: 0, top: 0, zIndex: 100,
+    }}>
+      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-const generateLogo = (id) => ({
-  id,
-  domain: companies[Math.floor(Math.random() * companies.length)],
-  x: Math.random() * 95,
-  y: -10,
-  size: Math.random() * 20 + 28,
-  speed: Math.random() * 0.03 + 0.02,
-  opacity: Math.random() * 0.35 + 0.25,
-  blinking: false,
-});
+      <div style={{ padding: "24px 20px", borderBottom: "1px solid #1a1a1a" }}>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "17px", fontWeight: "800", color: "#00ff88", letterSpacing: "-0.5px" }}>
+          ▸ ReMind
+        </div>
+        {user && (
+          <p style={{ margin: "6px 0 0", fontSize: "10px", color: "#333", fontFamily: "'JetBrains Mono', monospace" }}>
+            // {user.displayName ? user.displayName.split(" ")[0].toLowerCase() : "user"}
+          </p>
+        )}
+      </div>
+
+      <nav style={{ padding: "16px 12px", flex: 1 }}>
+        <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "9px", fontWeight: "700", color: "#2a2a2a", letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 8px 8px" }}>// nav</p>
+        {nav.map(({ to, label }) => (
+          <NavLink key={to} to={to} end={to === "/"} style={({ isActive }) => ({
+            display: "flex", alignItems: "center", gap: "10px",
+            padding: "9px 10px", borderRadius: "3px", marginBottom: "2px",
+            textDecoration: "none",
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: "12px", fontWeight: isActive ? "700" : "400",
+            color: isActive ? "#00ff88" : "#444",
+            background: isActive ? "rgba(0,255,136,0.05)" : "transparent",
+            borderLeft: isActive ? "2px solid #00ff88" : "2px solid transparent",
+          })}>
+            <span style={{ fontSize: "8px" }}>▸</span>
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div style={{ padding: "12px", borderTop: "1px solid #1a1a1a" }}>
+        {user ? (
+          <>
+            <button onClick={onSync} disabled={syncing} style={{
+              width: "100%", padding: "9px", marginBottom: "6px",
+              background: "transparent", border: "1px solid #00ff88",
+              color: "#00ff88", fontFamily: "'JetBrains Mono', monospace",
+              fontSize: "11px", fontWeight: "700", cursor: syncing ? "not-allowed" : "pointer",
+              borderRadius: "3px", opacity: syncing ? 0.5 : 1,
+            }}>
+              {syncing ? "// syncing..." : "⟳ sync_gmail()"}
+            </button>
+            <button onClick={onAddModal} style={{
+              width: "100%", padding: "9px", marginBottom: "6px",
+              background: "#00ff88", border: "none",
+              color: "#000", fontFamily: "'JetBrains Mono', monospace",
+              fontSize: "11px", fontWeight: "700", cursor: "pointer", borderRadius: "3px",
+            }}>
+              + new_application()
+            </button>
+            <button onClick={onLogout} style={{
+              width: "100%", padding: "7px",
+              background: "transparent", border: "1px solid #1a1a1a",
+              color: "#333", fontFamily: "'JetBrains Mono', monospace",
+              fontSize: "10px", cursor: "pointer", borderRadius: "3px",
+            }}>logout</button>
+          </>
+        ) : (
+          <button onClick={() => window.location.href = API + '/auth/google'} style={{
+            width: "100%", padding: "9px",
+            background: "#00ff88", border: "none",
+            color: "#000", fontFamily: "'JetBrains Mono', monospace",
+            fontSize: "11px", fontWeight: "700", cursor: "pointer", borderRadius: "3px",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"
+          }}>
+            <img src="https://www.google.com/favicon.ico" alt="G" style={{ width: "13px", height: "13px" }} />
+            login()
+          </button>
+        )}
+      </div>
+    </aside>
+  );
+}
 
 function App() {
-  const { displayed: headline, done: headlineDone } = useTypewriter("Your next offer is already out there.", 50, 300);
-  const { displayed: subline, done: sublineDone } = useTypewriter("Have you applied yet?", 60, 2300);
-  const [showHero, setShowHero] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   const [applications, setApplications] = useState([]);
   const [user, setUser] = useState(null);
-  const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const fetchApplications = async () => {
     try {
-      const res = await fetch("http://localhost:8000/applications");
+      const res = await fetch(API + "/applications");
       const data = await res.json();
-      setApplications(data);
-    } catch (err) {}
+      setApplications(Array.isArray(data) ? data : []);
+    } catch (err) { }
   };
 
   const checkUser = async () => {
     try {
-      const res = await fetch("http://localhost:8000/auth/user", { credentials: "include" });
-      const data = await res.json();
-      setUser(data.user);
-    } catch (err) {}
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+      if (urlToken && urlToken !== 'null') {
+        localStorage.setItem('accessToken', urlToken);
+        window.history.replaceState({}, '', '/');
+      }
+      const stored = localStorage.getItem('accessToken');
+      if (stored) {
+        const res = await fetch(API + "/auth/user?token=" + stored);
+        const data = await res.json();
+        if (data.user) setUser(data.user);
+      }
+    } catch (err) { }
   };
 
-  const handleLogout = async () => {
-    await fetch("http://localhost:8000/auth/logout", { credentials: "include" });
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
     setUser(null);
   };
 
   const handleGmailSync = async () => {
     try {
-      const res = await fetch("http://localhost:8000/gmail/sync", { credentials: "include" });
-      await res.json();
-      alert("Gmail sync complete! Check your dashboard.");
+      if (Notification.permission === "default") await Notification.requestPermission();
+      const token = localStorage.getItem('accessToken');
+      if (!token) { alert("Please log in first."); return; }
+      setSyncing(true);
+      const res = await fetch(API + "/gmail/sync?token=" + token);
+      const data = await res.json();
       fetchApplications();
+      if (Notification.permission === "granted") {
+        if (data.rejected > 0) new Notification("ReMind", { body: `❌ ${data.rejected} rejection(s) detected`, icon: "/favicon.ico" });
+        if (data.interviews > 0) new Notification("ReMind", { body: `📞 ${data.interviews} interview(s) detected!`, icon: "/favicon.ico" });
+        if (!data.rejected && !data.interviews) new Notification("ReMind", { body: `✅ Sync done. ${data.synced} new.`, icon: "/favicon.ico" });
+      } else {
+        alert(`Sync complete! ${data.synced} new, ${data.rejected} rejected, ${data.interviews} interviews.`);
+      }
     } catch (err) {
       alert("Could not sync Gmail");
+    } finally {
+      setSyncing(false);
     }
   };
 
   const handleStatusChange = async (id, newStatus) => {
     try {
-      await fetch("http://localhost:8000/applications/" + id, {
+      await fetch(API + "/applications/" + id, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus })
       });
       fetchApplications();
-    } catch (err) {}
+    } catch (err) { }
   };
 
   useEffect(() => {
@@ -105,141 +177,23 @@ function App() {
     checkUser();
   }, []);
 
-  useEffect(() => {
-    if (sublineDone) {
-      const timer = setTimeout(() => setShowHero(false), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [sublineDone]);
-
-  const [logos, setLogos] = useState(() =>
-    Array.from({ length: 25 }, (_, i) => ({ ...generateLogo(i), y: Math.random() * 100 }))
-  );
-  const animRef = useRef(null);
-
-  useEffect(() => {
-    let idCounter = 200;
-    const animate = () => {
-      setLogos((prev) => prev.map((logo) => {
-        if (logo.y > 110) return { ...generateLogo(idCounter++), y: -10 };
-        const nearMiddle = logo.y > 42 && logo.y < 58;
-        return { ...logo, y: logo.y + logo.speed, blinking: nearMiddle, opacity: nearMiddle ? 0.9 : Math.random() * 0.15 + 0.25 };
-      }));
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animRef.current);
-  }, []);
-
-  const filtered = applications.filter(function(app) {
-    return app.company.toLowerCase().includes(search.toLowerCase()) ||
-      app.role.toLowerCase().includes(search.toLowerCase());
-  });
+  const props = { applications, handleStatusChange, fetchApplications };
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: "linear-gradient(160deg, #020617 0%, #0a0f1e 50%, #020617 100%)" }}>
-      <div className="absolute pointer-events-none" style={{ width: "700px", height: "700px", borderRadius: "50%", background: "radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)", top: "-200px", left: "50%", transform: "translateX(-50%)" }} />
-      <div className="absolute pointer-events-none" style={{ width: "700px", height: "700px", borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)", bottom: "-200px", left: "50%", transform: "translateX(-50%)" }} />
-
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        {logos.map((logo) => (
-          <img key={logo.id} src={getFavicon(logo.domain)} alt={logo.domain} className="absolute select-none"
-            style={{ left: logo.x + "%", top: logo.y + "%", width: logo.size + "px", height: logo.size + "px", opacity: logo.opacity, borderRadius: "8px",
-              filter: logo.blinking ? "drop-shadow(0 0 8px rgba(16,185,129,0.9))" : "none",
-              transform: logo.blinking ? "scale(1.3)" : "scale(1)", transition: "filter 0.2s ease, transform 0.2s ease" }} />
-        ))}
+    <BrowserRouter>
+      <div style={{ display: "flex", minHeight: "100vh", background: "#0a0a0a", fontFamily: "'Inter', sans-serif", color: "#e2e8f0" }}>
+        <Sidebar user={user} onLogout={handleLogout} onSync={handleGmailSync} onAddModal={() => setShowModal(true)} syncing={syncing} />
+        <main style={{ marginLeft: "220px", flex: 1, padding: "40px 48px", minHeight: "100vh" }}>
+          <Routes>
+            <Route path="/" element={<Dashboard {...props} />} />
+            <Route path="/applications" element={<Applications {...props} />} />
+            <Route path="/interviews" element={<Interviews {...props} />} />
+            <Route path="/rejected" element={<Rejected {...props} />} />
+          </Routes>
+        </main>
+        {showModal && <AddApplicationModal onClose={() => { setShowModal(false); fetchApplications(); }} />}
       </div>
-
-      <nav className="relative z-10 flex items-center justify-between px-10 py-5 border-b border-white border-opacity-10 backdrop-blur-md" style={{ backgroundColor: "rgba(2,6,23,0.7)" }}>
-        <h1 className="text-2xl font-black text-emerald-400 cursor-pointer hover:scale-105 transition-transform duration-200">ReMind</h1>
-        <div className="flex items-center gap-3">
-          {user ? (
-            <div className="flex items-center gap-3">
-              <span className="text-gray-400 text-sm">Hey, {user.displayName ? user.displayName.split(" ")[0] : "there"}!</span>
-              <button onClick={handleGmailSync} className="bg-blue-500 hover:bg-blue-400 hover:scale-105 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 text-sm">Sync Gmail</button>
-              <button onClick={() => setShowModal(true)} className="bg-emerald-500 hover:bg-emerald-400 hover:scale-105 text-white font-semibold px-5 py-2 rounded-lg transition-all duration-200">+ Add Application</button>
-              <button onClick={handleLogout} className="text-gray-500 hover:text-white text-sm transition">Logout</button>
-            </div>
-          ) : (
-            <a href="http://localhost:8000/auth/google" className="bg-white hover:bg-gray-100 hover:scale-105 text-gray-900 font-semibold px-5 py-2 rounded-lg transition-all duration-200 flex items-center gap-2">
-              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-              Login with Google
-            </a>
-          )}
-        </div>
-      </nav>
-
-      <div className="relative z-10 px-10 py-16 text-center" style={{ opacity: showHero ? 1 : 0, transform: showHero ? "translateY(0)" : "translateY(-20px)", transition: "opacity 1s ease, transform 1s ease", pointerEvents: showHero ? "auto" : "none", position: showHero ? "relative" : "absolute", width: "100%" }}>
-        <h2 className="text-5xl font-black leading-tight min-h-[60px] hover:text-emerald-400 transition-colors duration-300 cursor-default" style={{ color: "#f1f5f9" }}>
-          {headline}{!headlineDone && <span className="animate-pulse text-emerald-400">|</span>}
-        </h2>
-        <p className="text-2xl font-semibold text-blue-400 mt-3 hover:text-blue-300 hover:scale-105 inline-block transition-all duration-200 cursor-default min-h-[36px]">
-          {subline}{!sublineDone && <span className="animate-pulse text-blue-400">|</span>}
-        </p>
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center justify-center px-10" style={{ opacity: showHero ? 0 : 1, transform: showHero ? "translateY(20px)" : "translateY(0)", transition: "opacity 1s ease, transform 1s ease", marginTop: showHero ? "0" : "80px" }}>
-        <p className="text-gray-400 font-semibold text-sm tracking-widest uppercase mb-4">Current Status</p>
-        <div className="flex justify-center gap-4">
-          <div className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-5 w-40 text-center shadow-sm hover:shadow-xl hover:scale-105 hover:border-emerald-500 transition-all duration-200 cursor-pointer" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
-            <p className="text-3xl font-black text-emerald-400">{applications.filter(function(a){return a.status==="applied";}).length}</p>
-            <p className="text-gray-400 font-semibold mt-1 text-sm">Applied</p>
-          </div>
-          <div className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-5 w-40 text-center shadow-sm hover:shadow-xl hover:scale-105 hover:border-blue-500 transition-all duration-200 cursor-pointer" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
-            <p className="text-3xl font-black text-blue-400">{applications.filter(function(a){return a.status==="interview";}).length}</p>
-            <p className="text-gray-400 font-semibold mt-1 text-sm">Interview</p>
-          </div>
-          <div className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-5 w-40 text-center shadow-sm hover:shadow-xl hover:scale-105 hover:border-red-500 transition-all duration-200 cursor-pointer" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
-            <p className="text-3xl font-black text-red-400">{applications.filter(function(a){return a.status==="rejected";}).length}</p>
-            <p className="text-gray-400 font-semibold mt-1 text-sm">Rejected</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative z-10 px-10 pb-16" style={{ opacity: showHero ? 0 : 1, transition: "opacity 1s ease", marginTop: "40px" }}>
-        <div className="max-w-3xl mx-auto mb-6">
-          <input
-            type="text"
-            placeholder="Search by company or role..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white bg-opacity-5 border border-white border-opacity-10 rounded-xl px-5 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition"
-          />
-        </div>
-        {filtered.length === 0 ? (
-          <p className="text-center text-gray-600 text-sm mt-4">No applications found.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 max-w-3xl mx-auto">
-            {filtered.map(function(app) {
-              return (
-                <div key={app.id} className="backdrop-blur-md border border-white border-opacity-10 rounded-xl p-6 flex items-center justify-between hover:border-emerald-500 transition-all duration-200" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
-                  <div className="flex items-center gap-4">
-                    <img src={"https://www.google.com/s2/favicons?domain=" + app.company.toLowerCase() + ".com&sz=32"} alt={app.company} className="rounded-md" style={{ width: "32px", height: "32px" }} />
-                    <div>
-                      <p className="text-white font-bold text-lg">{app.company}</p>
-                      <p className="text-gray-400 text-sm">{app.role}</p>
-                      <p className="text-gray-500 text-xs mt-1">{app.date_applied}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className={"text-xs font-bold px-3 py-1 rounded-full " + (app.status === "applied" ? "bg-blue-500 bg-opacity-20 text-blue-400" : app.status === "interview" ? "bg-emerald-500 bg-opacity-20 text-emerald-400" : "bg-red-500 bg-opacity-20 text-red-400")}>
-                      {app.status}
-                    </span>
-                    <div className="flex gap-1">
-                      <button onClick={function(){handleStatusChange(app.id,"applied");}} className={"text-xs px-2 py-1 rounded transition " + (app.status==="applied" ? "bg-blue-500 text-white" : "text-gray-500 hover:text-blue-400")}>Applied</button>
-                      <button onClick={function(){handleStatusChange(app.id,"interview");}} className={"text-xs px-2 py-1 rounded transition " + (app.status==="interview" ? "bg-emerald-500 text-white" : "text-gray-500 hover:text-emerald-400")}>Interview</button>
-                      <button onClick={function(){handleStatusChange(app.id,"rejected");}} className={"text-xs px-2 py-1 rounded transition " + (app.status==="rejected" ? "bg-red-500 text-white" : "text-gray-500 hover:text-red-400")}>Rejected</button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {showModal && <AddApplicationModal onClose={() => { setShowModal(false); fetchApplications(); }} />}
-    </div>
+    </BrowserRouter>
   );
 }
 
