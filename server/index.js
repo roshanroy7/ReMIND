@@ -15,7 +15,7 @@ const supabase = createClient(
 );
 
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true
 }));
 app.use(express.json());
@@ -49,10 +49,10 @@ app.get('/auth/google', passport.authenticate('google', {
 }));
 
 app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: 'http://localhost:3000' }),
+    passport.authenticate('google', { failureRedirect: process.env.FRONTEND_URL || 'http://localhost:3000' }),
     (req, res) => {
         const token = req.user ? req.user.accessToken : null;
-        res.redirect('http://localhost:3000?token=' + token);
+        res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '?token=' + token);
     }
 );
 

@@ -24,7 +24,7 @@ const AppCard = ({ app, handleStatusChange, fetchApplications }) => {
             );
             if (!uploadRes.ok) throw new Error("Upload failed");
             const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/resumes/${fileName}`;
-            await fetch(`http://localhost:8000/applications/${app.id}/cv`, {
+            await fetch(`https://remind-jufd.onrender.com/applications/${app.id}/cv`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ cv_url: publicUrl })

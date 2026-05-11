@@ -6,7 +6,7 @@ import Applications from "./pages/Applications";
 import Interviews from "./pages/Interviews";
 import Rejected from "./pages/Rejected";
 
-const API = "http://localhost:8000";
+const API = "https://remind-jufd.onrender.com";
 
 function Sidebar({ user, onLogout, onSync, onAddModal, syncing }) {
   const nav = [
