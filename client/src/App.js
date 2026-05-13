@@ -110,6 +110,8 @@ function App() {
 
   const fetchApplications = async () => {
     try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
       const res = await fetch(API + "/applications");
       const data = await res.json();
       setApplications(Array.isArray(data) ? data : []);
