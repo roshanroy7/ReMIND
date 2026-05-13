@@ -1,49 +1,39 @@
 # ReMind — Job Application Tracker
 
-> Stop losing track. Never forget what you applied for.
+> I built this because I needed it.
 
-**Live App:** [remind-ruby.vercel.app](https://remind-ruby.vercel.app)
-
----
-
-## The Problem
-
-You apply for 50 jobs. Emails pile up. You get a screening call and you're scrambling — which CV did I send? What role was it? When did I apply?
-
-ReMind fixes that.
+**Live:** [remind-ruby.vercel.app](https://remind-ruby.vercel.app) · **Built by:** [Roshan Palem](https://linkedin.com/in/roshan-palem-474979239)
 
 ---
 
-## What It Does
+## Why I Built This
 
-ReMind connects to your Gmail and automatically reads your job application emails. No manual logging. No spreadsheets. Just open the app and your entire job search is tracked.
+I was applying to 50+ jobs. Emails everywhere. I'd get a screening call and panic — which CV did I send? What role was it? When did I apply?
 
-When you get a screening call, you open ReMind, find the company, and your CV is right there attached to that application. You walk into every call prepared.
+No spreadsheet was going to fix that. So I built ReMind.
 
----
+ReMind connects to your Gmail and automatically tracks every job application you send. No manual logging. No copy-pasting. The moment you get a confirmation email, it's in your dashboard. When a rejection comes in, it's auto-detected. When you get a screening call, your CV is right there attached and ready.
 
-## How It Works
-
-1. **Login with Google** — one click, secure OAuth
-2. **Sync Gmail** — ReMind scans your inbox for application emails and pulls out the company name, role, and date automatically
-3. **Auto-detection** — emails containing words like "unfortunately" or "regret to inform" are marked as Rejected. Emails with "screening" or "schedule a call" are marked as Interview. All automatically.
-4. **Real-time notifications** — browser notification fires the moment a rejection or interview is detected
-5. **Attach your CV** — upload your resume to each application so you always know which version you sent
-6. **Dashboard** — clean view of everything. Applied, Interviews, Rejected — all in one place
+I use this every day while job hunting. It's not a tutorial project. It's a real tool that solves a real problem.
 
 ---
 
-## Features
+## What I Built
 
-- Google OAuth login (secure, no passwords stored)
-- Gmail auto-sync — reads application confirmation emails
-- Auto-detects rejections and interview requests from email content
-- Browser push notifications on status changes
-- Resume/CV upload per application (stored in Supabase Storage)
-- Multi-page dashboard — Dashboard, Applied, Interviews, Rejected
-- Search by company or role
-- Manual add application option
-- Real-time stats — Applied count, Interview count, Rejection count, Interview rate %
+### Auto Gmail Sync
+ReMind reads your Gmail using the Gmail API. When you hit Sync, it scans your inbox for job-related emails, extracts the company name, role, and date, and adds them to your dashboard automatically.
+
+### Smart Status Detection
+The backend analyses each email's content. If it finds words like "unfortunately" or "regret to inform" — it marks the application as Rejected. If it finds "screening", "schedule a call", or "next steps" — it marks it as Interview. All automatic, no clicking required.
+
+### Real-Time Notifications
+The moment a rejection or interview is detected during a sync, a browser notification fires. You know immediately without even looking at the app.
+
+### CV Attachment
+You can attach your CV to each application. So when a recruiter calls, you open ReMind, find the company, and instantly see which version of your resume you sent them. No more scrambling.
+
+### Live Dashboard
+Clean multi-page dashboard showing your full job search at a glance — Applied, Interviews, Rejected, and your overall interview rate. Built with React Router so each section is its own page.
 
 ---
 
@@ -62,60 +52,14 @@ When you get a screening call, you open ReMind, find the company, and your CV is
 
 ---
 
-## Running Locally
+## How It Works — Under The Hood
 
-### Prerequisites
-- Node.js
-- A Google Cloud project with Gmail API enabled
-- A Supabase project
-
-### 1. Clone the repo
-```bash
-git clone https://github.com/roshanroy7/ReMIND.git
-cd ReMIND
-```
-
-### 2. Set up the backend
-```bash
-cd server
-npm install
-```
-
-Create a `.env` file in the `server` folder:
-```
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-FRONTEND_URL=http://localhost:3000
-```
-
-Start the server:
-```bash
-node index.js
-```
-
-### 3. Set up the frontend
-```bash
-cd client
-npm install
-npm start
-```
-
-### 4. Supabase setup
-
-Create a table called `applications` with these columns:
-```
-id          int8 (primary key, auto increment)
-created_at  timestamptz
-company     text
-role        text
-date_applied text
-status      text
-cv_url      text
-```
-
-Create a Storage bucket called `resumes` and set it to public with an INSERT policy.
+1. User logs in via **Google OAuth**. The access token is stored in localStorage and sent with every API request.
+2. On sync, the **Express backend** queries the Gmail API for emails matching job-related keywords.
+3. Each email is fetched in full format. The subject and snippet are scanned for rejection and interview keywords.
+4. Results are stored in **Supabase PostgreSQL**. Duplicate prevention runs before every insert.
+5. CV uploads go directly from the browser to **Supabase Storage** using the public anon key. The public URL is saved to the database.
+6. The **React frontend** fetches data on load and after every sync, keeping the dashboard live.
 
 ---
 
@@ -125,15 +69,15 @@ Create a Storage bucket called `resumes` and set it to public with an INSERT pol
 ReMIND/
 ├── client/                 # React frontend
 │   └── src/
-│       ├── App.js          # Main app, sidebar, routing
+│       ├── App.js          # Main app, sidebar, routing, auth
 │       ├── AddApplicationModal.js
 │       └── pages/
-│           ├── Dashboard.js
-│           ├── Applications.js
-│           ├── Interviews.js
-│           └── Rejected.js
+│           ├── Dashboard.js      # Stats, interview rate, recent activity
+│           ├── Applications.js   # All applied jobs + CV upload
+│           ├── Interviews.js     # Interview stage applications
+│           └── Rejected.js       # Auto-detected rejections
 └── server/
-    └── index.js            # Express backend, all routes
+    └── index.js            # Express backend — all routes, Gmail sync, auth
 ```
 
 ---
@@ -146,15 +90,32 @@ ReMIND/
 | GET | `/auth/google/callback` | OAuth callback |
 | GET | `/auth/user` | Get current user |
 | GET | `/auth/logout` | Logout |
-| GET | `/gmail/sync` | Sync Gmail emails |
-| GET | `/applications` | Get all applications |
+| GET | `/gmail/sync` | Sync Gmail, detect status |
+| GET | `/applications` | Fetch all applications |
 | POST | `/applications` | Add manual application |
-| PATCH | `/applications/:id` | Update status |
-| PATCH | `/applications/:id/cv` | Attach CV URL |
+| PATCH | `/applications/:id` | Update application status |
+| PATCH | `/applications/:id/cv` | Attach CV to application |
 
 ---
 
-## Built By
+## Running Locally
 
-Roshan Palem — MSc Computer Science, UCD  
-[LinkedIn](https://linkedin.com/in/roshan-palem-474979239) · [GitHub](https://github.com/roshanroy7)
+```bash
+git clone https://github.com/roshanroy7/ReMIND.git
+cd ReMIND
+
+# Backend
+cd server
+npm install
+# Add .env with SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, FRONTEND_URL
+node index.js
+
+# Frontend
+cd ../client
+npm install
+npm start
+```
+
+---
+
+*MSc Computer Science, University College Dublin*
